@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Surprise</title>
+    <style>
+        /* --- RESET & BASE --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: 'Georgia', serif; /* Police élégante */
+            background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%); /* Fond par défaut */
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #4a4a4a;
+        }
+
+        /* --- BACKGROUND DYNAMIQUE --- */
+        .bg-gradient {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, #ffdde1, #ee9ca7); /* Rose doux */
+            z-index: -2;
+            transition: opacity 2s ease;
+        }
+        
+        /* Particules (Pétales) */
+        .petal {
+            position: absolute;
+            background-color: #fff0f5;
+            border-radius: 150% 0 150% 0;
+            animation: falling 10s infinite linear;
+            z-index: -1;
+            opacity: 0.6;
+        }
+
+        /* --- CONTENEUR PRINCIPAL --- */
+        #app {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* --- ÉCRANS (SCREENS) --- */
+        .screen {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.8s ease, transform 0.8s ease;
+            padding: 20px;
+        }
+        .screen.active {
+            opacity: 1;
+            pointer-events: all;
+            transform: scale(1);
+        }
+        .screen.hidden {
+            transform: scale(0.95);
+        }
+
+        /* --- 1. INTRO (ARBRE) --- */
+        #intro-screen svg {
+            width: 150px;
+            height: 200px;
+            overflow: visible;
+        }
+        .branch {
+            fill: none;
+            stroke: #5d4037;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-dasharray: 100;
+            stroke-dashoffset: 100;
+            animation: drawBranch 2s forwards ease-in-out;
+        }
+        .flower {
+            fill: #ff80ab;
+            transform: scale(0);
+            transform-box: fill-box;
+            transform-origin: center;
+            animation: bloom 0.5s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .intro-text {
+            margin-top: 20px;
+            font-size: 1.1rem;
+            color: #5d4037;
+            opacity: 0;
+            animation: fadeIn 1s 2.5s forwards;
+            font-style: italic;
+        }
+
+        /* --- 2. LOGIN --- */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            padding: 40px 30px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+            text-align: center;
+            width: 90%;
+            max-width: 350px;
+        }
+        h2 { margin-bottom: 20px; font-weight: normal; color: #444; }
+        input {
+            width: 100%;
+            padding: 15px;
+            border-radius: 50px;
+            border: none;
+            background: rgba(255, 255, 255, 0.6);
+            text-align: center;
+            font-size: 1.2rem;
+            letter-spacing: 5px;
+            outline: none;
+            margin-bottom: 20px;
+            color: #333;
+            transition: background 0.3s;
+        }
+        input:focus { background: rgba(255, 255, 255, 0.9); }
+        button {
+            padding: 12px 30px;
+            border-radius: 50px;
+            border: none;
+            background: #ff80ab;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255, 128, 171, 0.4);
+            transition: transform 0.2s, background 0.3s;
+        }
+        button:active { transform: scale(0.95); }
+        .error-msg {
+            color: #d32f2f;
+            margin-top: 15px;
+            font-size: 0.9rem;
+            min-height: 20px;
+            font-weight: bold;
+        }
+        
+        /* Animation Shake (Erreur) */
+        .shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+
+        /* --- 3. MENU 3D (CAROUSEL) --- */
+        .menu-container {
+            perspective: 1000px;
+            width: 100%;
+            height: 300px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        .card-stack {
+            width: 260px;
+            height: 340px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        .menu-card {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            backface-visibility: hidden;
+            padding: 20px;
+            cursor: pointer;
+            border: 2px solid white;
+        }
+        
+        /* Positionnement des cartes pour l'effet 3D */
+        .menu-card:nth-child(1) { transform: rotateY(0deg) translateZ(160px); }
+        .menu-card:nth-child(2) { transform: rotateY(90deg) translateZ(160px); }
+        .menu-card:nth-child(3) { transform: rotateY(180deg) translateZ(160px); }
+        .menu-card:nth-child(4) { transform: rotateY(270deg) translateZ(160px); }
+
+        .card-icon { font-size: 3rem; margin-bottom: 15px; }
+        .card-title { font-size: 1.4rem; color: #333; }
+        .card-desc { font-size: 0.9rem; color: #777; margin-top: 10px; }
+
+        .nav-buttons {
+            margin-top: 40px;
+            display: flex;
+            gap: 20px;
+        }
+        .nav-btn {
+            background: rgba(255,255,255,0.3);
+            border: 1px solid white;
+            width: 50px; height: 50px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; color: white;
+            cursor: pointer;
+        }
+
+        /* --- 4. MODAL CONTENU --- */
+        #modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 100;
+            display: flex; justify-content: center; align-items: flex-end;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        #modal-overlay.open { opacity: 1; pointer-events: all; }
+        .modal-content {
+            background: white;
+            width: 100%; height: 85%;
+            border-radius: 30px 30px 0 0;
+            padding: 30px;
+            transform: translateY(100%);
+            transition: transform 0.4s cubic-bezier(0.1, 0.9, 0.2, 1);
+            overflow-y: auto;
+            position: relative;
+        }
+        #modal-overlay.open .modal-content { transform: translateY(0); }
+        .close-modal {
+            position: absolute; top: 20px; right: 20px;
+            background: #f0f0f0; width: 40px; height: 40px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-weight: bold;
+        }
+        #modal-body h2 { color: #ff80ab; font-size: 2rem; }
+        #modal-body p { line-height: 1.6; font-size: 1.1rem; color: #555; }
+
+        /* --- ANIMATIONS KEYFRAMES --- */
+        @keyframes drawBranch { to { stroke-dashoffset: 0; } }
+        @keyframes bloom { to { transform: scale(1); } }
+        @keyframes fadeIn { to { opacity: 1; } }
+        @keyframes shake { 
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        @keyframes falling {
+            0% { transform: translate(0, -10vh) rotate(0deg); opacity: 1; }
+            100% { transform: translate(20px, 110vh) rotate(360deg); opacity: 0; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="bg-gradient">
+        </div>
+
+    <div id="app">
+        
+        <div id="intro-screen" class="screen active">
+            <svg viewBox="0 0 100 120">
+                <path class="branch" d="M50 120 L50 90 Q50 60 30 40" style="animation-delay: 0s" />
+                <path class="branch" d="M50 90 Q50 60 70 40" style="animation-delay: 0.5s" />
+                <path class="branch" d="M50 80 Q50 60 50 30" style="animation-delay: 0.3s" />
+                
+                <circle cx="30" cy="40" r="5" class="flower" style="animation-delay: 2s" />
+                <circle cx="70" cy="40" r="5" class="flower" style="animation-delay: 2.2s" />
+                <circle cx="50" cy="30" r="6" class="flower" style="animation-delay: 2.1s" />
+                <circle cx="40" cy="60" r="3" class="flower" style="animation-delay: 2.3s" />
+                <circle cx="60" cy="65" r="3" class="flower" style="animation-delay: 2.4s" />
+            </svg>
+            <p class="intro-text" id="intro-msg">Patience... ça pousse 🌸</p>
+        </div>
+
+        <div id="login-screen" class="screen">
+            <div class="glass-panel">
+                <h2>Coucou <span id="u-name">Toi</span></h2>
+                <p style="margin-bottom: 20px; font-size: 0.9rem;">Une surprise t'attend. Mais d'abord...</p>
+                <input type="password" id="pass-input" placeholder="****" maxlength="8">
+                <button onclick="checkPass()">Ouvrir ✨</button>
+                <div class="error-msg" id="error-msg"></div>
+            </div>
+        </div>
+
+        <div id="menu-screen" class="screen">
+            <h2 style="color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.2); margin-bottom: 40px;">Choisis une carte ❤️</h2>
+            
+            <div class="menu-container">
+                <div class="card-stack" id="carousel">
+                    <div class="menu-card" onclick="openModal(0)">
+                        <div class="card-icon">📖</div>
+                        <div class="card-title">Notre Histoire</div>
+                        <div class="card-desc">Nos moments clés...</div>
+                    </div>
+                    <div class="menu-card" onclick="openModal(1)">
+                        <div class="card-icon">🎁</div>
+                        <div class="card-title">Cadeaux</div>
+                        <div class="card-desc">Bons à utiliser</div>
+                    </div>
+                    <div class="menu-card" onclick="openModal(2)">
+                        <div class="card-icon">💌</div>
+                        <div class="card-title">Mots Doux</div>
+                        <div class="card-desc">Juste pour toi</div>
+                    </div>
+                    <div class="menu-card" onclick="openModal(3)">
+                        <div class="card-icon">🎧</div>
+                        <div class="card-title">Playlist</div>
+                        <div class="card-desc">Notre musique</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nav-buttons">
+                <div class="nav-btn" onclick="rotateCarousel(-1)">❮</div>
+                <div class="nav-btn" onclick="rotateCarousel(1)">❯</div>
+            </div>
+            <p style="color: white; margin-top: 20px; font-size: 0.8rem; opacity: 0.8;">Glisse ou clique sur les flèches</p>
+        </div>
+
+    </div>
+
+    <div id="modal-overlay">
+        <div class="modal-content">
+            <div class="close-modal" onclick="closeModal()">✕</div>
+            <div id="modal-body">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        /* ==============================================
+           🔧 ZONE À MODIFIER (PERSONNALISATION)
+           ============================================== */
+        
+        const PRENOM = "Mon Amour"; // Son prénom
+        const MOT_DE_PASSE = "2024"; // Le code secret
+        
+        // Les messages d'erreur aléatoires
+        const MESSAGES_ERREUR = [
+            "Raté ! Petit indice : c'est notre année... 😘",
+            "Nop ! Même mon code est plus romantique. ✨",
+            "Erreur : Trop de charme, mais mauvais code. ⛔",
+            "Presque... mais non. Concentre-toi ! 🧠❤️"
+        ];
+
+        // Le contenu des cartes (Tu peux écrire du HTML ici si tu veux des sauts de ligne <br>)
+        const CONTENU_CARTES = [
+            {
+                title: "Notre Histoire 📖",
+                body: "<p>Il était une fois... <strong>nous</strong>.<br><br>Depuis le premier jour, chaque instant avec toi est une page que j'adore écrire. Tu te souviens de notre première rencontre ?<br><br>Moi je ne l'oublierai jamais.</p>"
+            },
+            {
+                title: "Tes Bons Cadeaux 🎁",
+                body: "<ul><li>🎫 Bon pour un massage de 30min</li><br><li>🎫 Bon pour un resto de ton choix</li><br><li>🎫 Bon pour un 'Joker Dispute' (à utiliser avec sagesse 😅)</li></ul>"
+            },
+            {
+                title: "Le Mur des Mots 💌",
+                body: "<p>Juste pour te dire que tu es la personne la plus incroyable que je connaisse. Merci d'être toi. Merci de me faire rire. <br><br>Je t'aime plus qu'hier, moins que demain. ❤️</p>"
+            },
+            {
+                title: "Notre Playlist 🎧",
+                body: "<p>Ferme les yeux et imagine notre chanson.<br><br><em>(Ici, tu peux mettre un lien Spotify si tu veux : <a href='#'>Clique ici</a>)</em><br><br>C'est ce que je ressens quand je te regarde.</p>"
+            }
+        ];
+
+        /* ==============================================
+           FIN DE LA ZONE À MODIFIER
+           ============================================== */
+
+        // --- GESTION DES PÉTALES (DÉCORATION) ---
+        function createPetals() {
+            const container = document.querySelector('.bg-gradient');
+            for(let i=0; i<15; i++) {
+                let petal = document.createElement('div');
+                petal.className = 'petal';
+                petal.style.left = Math.random() * 100 + '%';
+                petal.style.width = (Math.random() * 10 + 5) + 'px';
+                petal.style.height = petal.style.width;
+                petal.style.animationDuration = (Math.random() * 5 + 5) + 's';
+                petal.style.animationDelay = (Math.random() * 5) + 's';
+                container.appendChild(petal);
+            }
+        }
+        createPetals();
+
+        // --- SETUP INTRO ---
+        document.getElementById('u-name').innerText = PRENOM;
+        setTimeout(() => {
+            switchScreen('intro-screen', 'login-screen');
+        }, 4500); // 4.5 secondes d'intro arbre
+
+        // --- FONCTIONS NAVIGATION ---
+        function switchScreen(fromId, toId) {
+            document.getElementById(fromId).classList.remove('active');
+            document.getElementById(fromId).classList.add('hidden');
+            setTimeout(() => {
+                document.getElementById(fromId).style.display = 'none'; // Clean remove
+                const next = document.getElementById(toId);
+                next.style.display = 'flex';
+                // Petit hack pour forcer le reflow CSS pour l'anim
+                void next.offsetWidth; 
+                next.classList.add('active');
+            }, 500);
+        }
+
+        // --- LOGIQUE LOGIN ---
+        function checkPass() {
+            const input = document.getElementById('pass-input');
+            const val = input.value;
+            const errDiv = document.getElementById('error-msg');
+            const panel = document.querySelector('.glass-panel');
+
+            if(val === MOT_DE_PASSE) {
+                // Succès
+                input.style.borderColor = "#4CAF50";
+                errDiv.style.color = "#4CAF50";
+                errDiv.innerText = "Accès autorisé... Bienvenue ❤️";
+                setTimeout(() => {
+                    switchScreen('login-screen', 'menu-screen');
+                }, 1000);
+            } else {
+                // Échec
+                panel.classList.remove('shake');
+                void panel.offsetWidth; // Reset animation
+                panel.classList.add('shake');
+                input.value = "";
+                input.focus();
+                // Message aléatoire
+                const randomMsg = MESSAGES_ERREUR[Math.floor(Math.random() * MESSAGES_ERREUR.length)];
+                errDiv.innerText = randomMsg;
+                errDiv.style.color = "#d32f2f";
+            }
+        }
+
+        // --- LOGIQUE CAROUSEL 3D ---
+        let currDeg = 0;
+        const carousel = document.getElementById('carousel');
+        
+        function rotateCarousel(direction) {
+            currDeg -= direction * 90; // Tourne de 90 degres
+            carousel.style.transform = `rotateY(${currDeg}deg)`;
+        }
+
+        // --- LOGIQUE MODAL ---
+        function openModal(index) {
+            const content = CONTENU_CARTES[index];
+            const modalBody = document.getElementById('modal-body');
+            modalBody.innerHTML = `<h2>${content.title}</h2>${content.body}`;
+            document.getElementById('modal-overlay').classList.add('open');
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('open');
+        }
+
+    </script>
+</body>
+</html>
